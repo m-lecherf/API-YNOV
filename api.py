@@ -1,5 +1,7 @@
 from fastapi import FastAPI, File, UploadFile
 from pydantic import BaseModel
+import pickle
+import pandas as pd
 
 tags = [
     {
@@ -49,3 +51,38 @@ def formulaire(data:Data):
 @app.post('/upload')
 def upload_file(file: UploadFile=File(...)):
     return file.filename
+
+# 0 charger modèle 
+with open('model.pkl', 'rb') as file:
+    model = pickle.load(file)
+
+class Data_predict(BaseModel):
+    Gender: str
+    Age: int
+    Graduated: str
+    Profession: str
+    Work_Experience: int
+    Spending_Score: str
+    Family_Size: int
+    Segmentation: str
+
+# 1 créer endpoint
+@app.post('/predict', tags=["Model"])
+def predict(data: Data_predict):
+    data = dict(data)
+
+    # Prédictions
+    prediction = model.predict(pd.DataFrame([data]))
+
+    return int(prediction)
+
+@app.post('/predict_file', tags=["Model"])
+def predict_file(file: UploadFile=File(...)):
+    df = pd.read_csv(file.file)
+
+    if 'Gender' not in df.columns or 'Gratuated' not in df.columns:
+        return False
+    else :
+        X = df.drop(["Ever_Married"], axis=1).dropna()
+        predictions = model.predict(X)
+        return [int(n) for n in predictions]
